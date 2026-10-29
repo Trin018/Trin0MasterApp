@@ -1,0 +1,38 @@
+name: Publicar Trin0 Master APP
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - name: Baixar código
+        uses: actions/checkout@v4
+
+      - name: Configurar .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+
+      - name: Gerar Trin0MasterApp.exe (arquivo único)
+        run: |
+          dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true -p:DebugType=None -o dist
+          Copy-Item "LEIA-ME.txt" "dist\LEIA-ME.txt"
+          Compress-Archive -Path "dist\*" -DestinationPath "Trin0MasterApp-win-x64.zip"
+
+      - name: Publicar na aba Releases (latest)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: latest
+          name: "Trin0 Master APP (Última Versão)"
+          body_path: LEIA-ME.txt
+          files: |
+            dist/Trin0MasterApp.exe
+            Trin0MasterApp-win-x64.zip

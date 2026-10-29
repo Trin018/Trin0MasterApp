@@ -1,0 +1,43 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <UseWPF>true</UseWPF>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+    <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+    <AssemblyName>Trin0MasterApp</AssemblyName>
+    <RootNamespace>ResetExplode</RootNamespace>
+    <Product>Trin0 Master APP</Product>
+    <Version>1.0.0</Version>
+    <!-- Sempre otimizado: os benchmarks e os stress tests precisam do JIT otimizado também em Debug -->
+    <Optimize>true</Optimize>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\logo.png" />
+    <Resource Include="Assets\app.ico" />
+    <Resource Include="Assets\logo-badge.png" />
+    <Resource Include="Assets\logo-dark.png" />
+  </ItemGroup>
+
+  <!-- iCUE SDK da Corsair (INTEGRAÇÃO): se a DLL estiver em Native\, ela vai junto do .exe. -->
+  <ItemGroup>
+    <None Include="Native\iCUESDK.x64_2019.dll" Condition="Exists('Native\iCUESDK.x64_2019.dll')" Link="iCUESDK.x64_2019.dll" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <PackageReference Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.2.8" />
+    <PackageReference Include="System.Management" Version="10.0.2" />
+    <PackageReference Include="System.Security.Cryptography.ProtectedData" Version="10.0.2" />
+    <PackageReference Include="Vortice.D3DCompiler" Version="3.8.3" />
+    <PackageReference Include="Vortice.Direct3D11" Version="3.8.3" />
+    <PackageReference Include="Vortice.Direct3D12" Version="3.8.3" />
+    <PackageReference Include="Vortice.Dxc" Version="3.8.3" />
+  </ItemGroup>
+
+</Project>
