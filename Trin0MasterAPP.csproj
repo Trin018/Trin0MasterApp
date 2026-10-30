@@ -12,7 +12,6 @@
     <RootNamespace>ResetExplode</RootNamespace>
     <Product>Trin0 Master APP</Product>
     <Version>1.0.0</Version>
-    <!-- Sempre otimizado: os benchmarks e os stress tests precisam do JIT otimizado também em Debug -->
     <Optimize>true</Optimize>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
   </PropertyGroup>

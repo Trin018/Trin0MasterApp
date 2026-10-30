@@ -1,26 +1,27 @@
-Trin0 Master APP
-=============
+TRIN0 MASTER APP (v1.0)
+=======================
 
-Ferramenta de diagnóstico de hardware: informações do sistema, sensores, placa de vídeo,
-FPS estimado em jogos, detector de gargalo, overlay de FPS, RESET BENCH (benchmarks de CPU, GPU, memória e disco)
-RESET OTIMIZA (limpeza de memória e ajustes para jogos) e stress test de CPU / RAM / GPU.
+Central completa de diagnóstico, otimização de Windows, Gaming e Streaming:
+- Informações detalhadas do sistema, sensores em tempo real, saúde dos discos (S.M.A.R.T.), energia e diagnóstico de rede.
+- Otimização & Trin0 AI Advisor: velocímetro de estado do PC (0–100%), limpeza de RAM (Standby List), limpeza de cache/temp e switches genuínos do Windows.
+- Stream & OBS: otimizador do OBS Studio (Modo Admin + GPU dedicada + prioridade alta), instalação e guia do Voicemeeter Banana / VB-Cable e recomendador de Encoder.
+- Instalar Apps (Estilo Ninite): instalação silenciosa de 22 aplicações essenciais pós-formatação com um clique via winget.
+- Jogos: inicializador com perfis por jogo, calculadora de FPS, detetor de gargalo e Overlay de FPS/sensores em jogo.
+- Desempenho: Benchmarks (CPU Render, Cena de Jogo GPU, Ray Tracing DXR 1.1, Simulação, Memória e Disco), Stress Test e Overclock.
 
 REQUISITOS
-- Windows 10 ou 11, 64 bits. Não precisa instalar o .NET (já vem dentro do .exe).
-- Para temperatura e consumo da CPU, instale o driver PawnIO (uma vez só):
+- Windows 10 ou 11, 64 bits. Não precisa de instalar o .NET (já vem embutido dentro do .exe).
+- Para ler temperatura e consumo da CPU, instale o driver PawnIO (apenas uma vez):
       winget install namazso.PawnIO
-- Aceite o pedido de administrador ao abrir (necessário para ler os sensores).
+- Aceite o pedido de Administrador ao abrir (necessário para ler sensores, aplicar switches e limpar a memória).
 - Se a temperatura/consumo da CPU não aparecerem, o menu lateral mostra o motivo e um
-  botão CORRIGIR, que instala o PawnIO com um clique. Depois feche e abra o programa.
-  Se instalou o PawnIO e mesmo assim não aparecer, reinicie o PC.
+  botão CORRIGIR, que instala o PawnIO com um clique.
 
 COMO USAR
-- Abra o ResetExplode.exe. Na primeira vez ele demora alguns segundos para iniciar.
-- Se o Windows mostrar "O Windows protegeu o computador", clique em "Mais informações"
-  e depois em "Executar assim mesmo" (o programa não tem assinatura digital paga).
-- Overlay: Ctrl + Shift + O liga e desliga.
+- Abra o Trin0MasterApp.exe.
+- No canto superior direito pode alternar entre 6 Cores de Destaque (ícone da paleta) e Modo Escuro/Claro.
+- Overlay em jogo: o atalho Ctrl + Shift + O liga e desliga a qualquer momento.
 
 OBSERVAÇÕES
-- Placas NVIDIA mostram mais detalhes (VBIOS, limites de energia, CUDA).
-- Configurações e histórico ficam em %AppData%\ResetExplode (não vão junto com o .exe).
-- Use os stress tests com o limite de temperatura ligado e boa ventilação.
+- Placas NVIDIA mostram detalhes adicionais (VBIOS, limites de energia, CUDA) via NVML.
+- Todos os switches do Windows guardam backup automático antes da primeira alteração e podem ser revertidos em "Restaurar originais".

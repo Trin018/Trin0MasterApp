@@ -133,13 +133,15 @@ public partial class MainWindow
         var dlg = new Microsoft.Win32.SaveFileDialog
         {
             Title = "Exportar relatório",
-            Filter = "Relatório HTML (*.html)|*.html|Dados JSON (*.json)|*.json",
+            Filter = "Relatório HTML (*.html)|*.html|Folha de Cálculo CSV (*.csv)|*.csv|Dados JSON (*.json)|*.json",
             DefaultExt = ".html",
-            FileName = $"RESET-EXPLODE-relatorio-{DateTime.Now:yyyyMMdd-HHmm}",
+            FileName = $"Trin0MasterApp-relatorio-{DateTime.Now:yyyyMMdd-HHmm}",
         };
         if (dlg.ShowDialog(this) != true) return;
         string path = dlg.FileName;
-        bool json = string.Equals(Path.GetExtension(path), ".json", StringComparison.OrdinalIgnoreCase);
+        string ext = Path.GetExtension(path).ToLowerInvariant();
+        bool json = ext == ".json";
+        bool csv = ext == ".csv";
 
         BtnReport.IsEnabled = false;
         BtnReport.Content = "GERANDO…";
@@ -167,7 +169,7 @@ public partial class MainWindow
             if (_lastNet != null)
                 data.Network.AddRange(_lastNet.Select(d => new ReportDisk(d.Title, d.Meta, d.VerdictText, d.Reasons, d.Metrics)));
 
-            string text = json ? ReportBuilder.Json(data) : ReportBuilder.Html(data);
+            string text = json ? ReportBuilder.Json(data) : csv ? ReportBuilder.Csv(data) : ReportBuilder.Html(data);
             await File.WriteAllTextAsync(path, text, new UTF8Encoding(true));
 
             SystemSub.Text = $"Relatório salvo em {path}";

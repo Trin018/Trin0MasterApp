@@ -19,6 +19,10 @@ public partial class MainWindow : Window
     private string? _category;
     private string _search = "";
 
+    // System Tray & Alertas em Segundo Plano
+    private TrayService? _tray;
+    private bool _reallyExit;
+
     // Placa de vídeo
     private List<GpuInfo> _gpus = new();
     private GpuInfo? _gpu;
@@ -96,6 +100,32 @@ public partial class MainWindow : Window
         TitlePage.Text = "Visão geral";
         UpdateDashboard();
 
+        // Inicializa o System Tray e o Sentinela (nativo Win32)
+        _tray = new TrayService(
+            parent: this,
+            showWindow: () =>
+            {
+                Show();
+                WindowState = WindowState.Normal;
+                Activate();
+            },
+            cleanRam: () =>
+            {
+                Optimizer.CleanMemory();
+                _tray?.Notify("Trin0 Master APP", "Memória Standby limpa com sucesso!");
+                UpdateRamStatus();
+            },
+            toggleOverlay: () =>
+            {
+                ChkOverlay.IsChecked = ChkOverlay.IsChecked != true;
+            },
+            exitApp: () =>
+            {
+                _reallyExit = true;
+                Close();
+            }
+        );
+
         Loaded += async (_, _) => await LoadHardwareAsync();
 
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -109,6 +139,10 @@ public partial class MainWindow : Window
             UpdateCpuSensorWarning();
             CollectDashSample();
             UpdateBottleneck();
+
+            // Sentinela de Alertas em 2º plano
+            _tray?.CheckHealthAlerts(_monitor.CpuTemperature, MainGpuTemp());
+
             if (PageBench.IsVisible) UpdateBenchLive();
             if (PageOptimize.IsVisible) UpdateRamStatus();
         };
@@ -120,6 +154,18 @@ public partial class MainWindow : Window
             Root.Margin = max ? new Thickness(7) : new Thickness(0);
             BtnMax.Content = max ? "" : "";
         };
+
+      // Ao fechar no X: minimiza para a bandeja do sistema (perto do relógio)
+        Closing += (s, e) =>
+        {
+            if (!_reallyExit)
+            {
+                e.Cancel = true;
+                Hide();
+                _tray?.Notify("Trin0 Master APP", "A correr em segundo plano para monitorização contínua. Dois cliques no ícone para reabrir.");
+            }
+        };
+
         Closed += (_, _) =>
         {
             _timer.Stop(); _overlayTimer?.Stop();
@@ -131,6 +177,7 @@ public partial class MainWindow : Window
             ShutdownInteg();
             _launchCts?.Cancel();
             _monitor.Dispose();
+            _tray?.Dispose();
         };
     }
 
@@ -744,7 +791,7 @@ public partial class MainWindow : Window
         }).ToList();
     }
 
-    // ---------------- OTIMIZAÇÃO ----------------
+    // ---------------- OTIMIZAÇÃO & TRIN0 AI ADVISOR ----------------
 
     private void InitOptimize()
     {
@@ -759,6 +806,7 @@ public partial class MainWindow : Window
         UpdateRamStatus();
         RefreshAiAdvisor();
     }
+
     private void UpdateRamStatus()
     {
         var (total, avail) = Optimizer.MemoryStatus();
@@ -774,7 +822,11 @@ public partial class MainWindow : Window
         OptApps.ItemsSource = _apps;
     }
 
-    private void BtnRefreshApps_Click(object sender, RoutedEventArgs e) => RefreshApps();
+    private void BtnRefreshApps_Click(object sender, RoutedEventArgs e)
+    {
+        RefreshApps();
+        RefreshAiAdvisor();
+    }
 
     private async void BtnOptimize_Click(object sender, RoutedEventArgs e)
     {
@@ -789,21 +841,22 @@ public partial class MainWindow : Window
         if (r != MessageBoxResult.Yes) return;
 
         BtnOptimize.IsEnabled = false;
-        BtnOptimize.Content = "OTIMIZANDO…";
+        BtnOptimize.Content = "A LIMPAR…";
         OptResult.Text = "";
         var closeResult = await Task.Run(() => Optimizer.CloseApps(toClose));
         var mem = await Task.Run(Optimizer.CleanMemory);
         BtnOptimize.IsEnabled = true;
-        BtnOptimize.Content = "OTIMIZAR AGORA";
+        BtnOptimize.Content = "LIMPAR RAM & APPS";
 
         var parts = new List<string> { $"Memória liberada: {mem.FreedBytes / 1048576.0:N0} MB" };
         parts.Add(mem.StandbyPurged ? "memória em espera limpa" : $"memória em espera não limpa ({mem.StandbyError})");
         if (closeResult.Closed.Count > 0) parts.Add($"fechados: {string.Join(", ", closeResult.Closed)}");
         if (closeResult.NotClosed.Count > 0)
-            parts.Add($"não fecharam (podem ter algo não salvo ou pedir confirmação): {string.Join(", ", closeResult.NotClosed)}");
+            parts.Add($"não fecharam: {string.Join(", ", closeResult.NotClosed)}");
         OptResult.Text = string.Join(" · ", parts) + ".";
         RefreshApps();
         UpdateRamStatus();
+        RefreshAiAdvisor();
     }
 
     private void Tweak_Click(object sender, RoutedEventArgs e)
@@ -825,6 +878,7 @@ public partial class MainWindow : Window
             t.Status = $"Falhou: {ex.Message}";
         }
         box.IsChecked = t.IsOn;
+        RefreshAiAdvisor();
     }
 
     private bool RequireAdmin()
@@ -850,6 +904,7 @@ public partial class MainWindow : Window
         WindowsTweaks.RestoreAll(_tweaks, _settings);
         foreach (var t in _tweaks) { t.Refresh(); t.Status = "Restaurado."; }
         if (restart) MessageBox.Show("Alguns ajustes só voltam ao original depois de reiniciar o PC.", "Otimização");
+        RefreshAiAdvisor();
     }
 
     // ---------------- BENCHMARKS DE JOGO ----------------
