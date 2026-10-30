@@ -122,7 +122,10 @@ public partial class MainWindow : Window
             exitApp: () =>
             {
                 _reallyExit = true;
+                _tray?.Dispose();
                 Close();
+                Application.Current.Shutdown();
+                Environment.Exit(0);
             }
         );
 
@@ -168,8 +171,11 @@ public partial class MainWindow : Window
 
         Closed += (_, _) =>
         {
-            _timer.Stop(); _overlayTimer?.Stop();
-            _stress.Stop(); _burn.Stop(); _benchCts?.Cancel();
+            _timer.Stop();
+            _overlayTimer?.Stop();
+            _stress.Stop();
+            _burn.Stop();
+            _benchCts?.Cancel();
             _overlay?.Close();
             _toast?.Close();
             _frames.Dispose();
@@ -178,6 +184,12 @@ public partial class MainWindow : Window
             _launchCts?.Cancel();
             _monitor.Dispose();
             _tray?.Dispose();
+
+            if (_reallyExit)
+            {
+                Application.Current.Shutdown();
+                Environment.Exit(0);
+            }
         };
     }
 

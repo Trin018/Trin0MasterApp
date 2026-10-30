@@ -59,21 +59,96 @@ public sealed class TrayService : IDisposable
 
     private void LoadTrayIcon()
     {
+        // 1. Tenta carregar através dos Resources embutidos do app e cria o HICON nativo
         try
         {
-            var res = Application.GetResourceStream(new Uri("pack://application:,,,/Assets/app.ico"));
-            if (res?.Stream != null)
+            var uri = new Uri("pack://application:,,,/Assets/app.ico", UriKind.Absolute);
+            var streamInfo = Application.GetResourceStream(uri);
+            if (streamInfo?.Stream != null)
             {
-                using var ms = new MemoryStream();
-                res.Stream.CopyTo(ms);
-                var bytes = ms.ToArray();
-                _hIcon = CreateIconFromResourceEx(bytes, (uint)bytes.Length, true, 0x00030000, 16, 16, 0);
+                var decoder = BitmapDecoder.Create(
+                    streamInfo.Stream,
+                    BitmapCreateOptions.None,
+                    BitmapCacheOption.OnLoad);
+
+                var frame = decoder.Frames.OrderBy(f => Math.Abs(f.PixelWidth - 16)).FirstOrDefault() 
+                            ?? decoder.Frames[0];
+
+                var bmp = new FormatConvertedBitmap(frame, System.Windows.Media.PixelFormats.Bgra32, null, 0);
+                int width = bmp.PixelWidth;
+                int height = bmp.PixelHeight;
+                int stride = width * 4;
+                var pixels = new byte[height * stride];
+                bmp.CopyPixels(pixels, stride, 0);
+
+                _hIcon = CreateHIconFromBgra(pixels, width, height);
             }
         }
         catch { }
 
+        // 2. Fallback: extrai o ícone associado do próprio ficheiro executável (.exe)
         if (_hIcon == IntPtr.Zero)
-            _hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512); // Ícone padrão
+        {
+            try
+            {
+                string exePath = Environment.ProcessPath ?? "";
+                if (File.Exists(exePath))
+                {
+                    _hIcon = ExtractAssociatedIcon(IntPtr.Zero, exePath, out _);
+                }
+            }
+            catch { }
+        }
+
+        // 3. Fallback final: ícone padrão de aplicação do Windows
+        if (_hIcon == IntPtr.Zero)
+        {
+            _hIcon = LoadIcon(IntPtr.Zero, (IntPtr)32512);
+        }
+    }
+
+    private static IntPtr CreateHIconFromBgra(byte[] bgraPixels, int width, int height)
+    {
+        IntPtr hBitmap = IntPtr.Zero;
+        IntPtr hMonoMask = IntPtr.Zero;
+
+        try
+        {
+            var bi = new BITMAPINFOHEADER
+            {
+                biSize = (uint)Marshal.SizeOf<BITMAPINFOHEADER>(),
+                biWidth = width,
+                biHeight = -height, // top-down
+                biPlanes = 1,
+                biBitCount = 32,
+                biCompression = 0 // BI_RGB
+            };
+
+            IntPtr pBits;
+            hBitmap = CreateDIBSection(IntPtr.Zero, ref bi, 0, out pBits, IntPtr.Zero, 0);
+            if (hBitmap == IntPtr.Zero || pBits == IntPtr.Zero) return IntPtr.Zero;
+
+            Marshal.Copy(bgraPixels, 0, pBits, bgraPixels.Length);
+
+            // Máscara monocromática transparente
+            hMonoMask = CreateBitmap(width, height, 1, 1, IntPtr.Zero);
+
+            var iconInfo = new ICONINFO
+            {
+                fIcon = true,
+                xHotspot = 0,
+                yHotspot = 0,
+                hbmMask = hMonoMask,
+                hbmColor = hBitmap
+            };
+
+            return CreateIconIndirect(ref iconInfo);
+        }
+        finally
+        {
+            if (hBitmap != IntPtr.Zero) DeleteObject(hBitmap);
+            if (hMonoMask != IntPtr.Zero) DeleteObject(hMonoMask);
+        }
     }
 
     private void AddTrayIcon()
@@ -141,7 +216,7 @@ public sealed class TrayService : IDisposable
         }
         else if (msg == _taskbarCreatedMsg && _taskbarCreatedMsg != 0)
         {
-            AddTrayIcon(); // Recria o ícone caso o explorer.exe reinicie
+            AddTrayIcon();
         }
 
         return IntPtr.Zero;
@@ -196,7 +271,6 @@ public sealed class TrayService : IDisposable
         _hwndSource?.RemoveHook(WndProc);
     }
 
-    // P/Invoke Win32 puro
     [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
     private struct NOTIFYICONDATA
     {
@@ -220,8 +294,37 @@ public sealed class TrayService : IDisposable
         public IntPtr hBalloonIcon;
     }
 
+    [StructLayout(LayoutKind.Sequential)]
+    private struct ICONINFO
+    {
+        public bool fIcon;
+        public int xHotspot;
+        public int yHotspot;
+        public IntPtr hbmMask;
+        public IntPtr hbmColor;
+    }
+
+    [StructLayout(LayoutKind.Sequential)]
+    private struct BITMAPINFOHEADER
+    {
+        public uint biSize;
+        public int biWidth;
+        public int biHeight;
+        public ushort biPlanes;
+        public ushort biBitCount;
+        public uint biCompression;
+        public uint biSizeImage;
+        public int biXPelsPerMeter;
+        public int biYPelsPerMeter;
+        public uint biClrUsed;
+        public uint biClrImportant;
+    }
+
     [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
     private static extern bool Shell_NotifyIcon(uint dwMessage, ref NOTIFYICONDATA lpdata);
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode)]
+    private static extern IntPtr ExtractAssociatedIcon(IntPtr hInst, string lpIconPath, out ushort lpiIcon);
 
     [DllImport("user32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
     private static extern uint RegisterWindowMessage(string lpString);
@@ -229,12 +332,21 @@ public sealed class TrayService : IDisposable
     [DllImport("user32.dll")]
     private static extern bool SetForegroundWindow(IntPtr hWnd);
 
-    [DllImport("user32.dll", SetLastError = true)]
-    private static extern IntPtr CreateIconFromResourceEx(byte[] pbIconBits, uint cbIconBits, bool fIcon, uint dwVersion, int cxDesired, int cyDesired, uint uFlags);
-
     [DllImport("user32.dll")]
     private static extern IntPtr LoadIcon(IntPtr hInstance, IntPtr lpIconName);
 
     [DllImport("user32.dll", SetLastError = true)]
     private static extern bool DestroyIcon(IntPtr hIcon);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr CreateIconIndirect(ref ICONINFO icon);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateDIBSection(IntPtr hdc, ref BITMAPINFOHEADER pbmi, uint usage, out IntPtr ppvBits, IntPtr hSection, uint offset);
+
+    [DllImport("gdi32.dll")]
+    private static extern IntPtr CreateBitmap(int nWidth, int nHeight, uint nPlanes, uint nBitCount, IntPtr lpBits);
+
+    [DllImport("gdi32.dll")]
+    private static extern bool DeleteObject(IntPtr hObject);
 }
